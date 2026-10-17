@@ -327,6 +327,9 @@ body .updb{bottom:calc(var(--nbh) + 12px)}body .tst{bottom:calc(var(--nbh) + 18p
 #nav .ic{position:relative}#nav .ic.bdg::after{content:"";position:absolute;top:1px;right:9px;width:9px;height:9px;border-radius:50%;background:var(--lo);border:2px solid var(--card);box-sizing:content-box}
 .nwb{margin:6px 0 2px;padding:9px 12px;border-radius:10px;background:var(--acbg);color:var(--ac);font-size:13.5px;font-weight:700;line-height:1.35}
 .nwb.nwi{font-weight:500;cursor:default}.nwb .nwk{display:block;margin-top:8px;width:100%}
+.stg{display:inline-block;margin-left:2px;padding:0 7px;border-radius:9px;font-size:11px;font-weight:700;line-height:17px;vertical-align:1px}
+.stg.in{background:var(--okbg);color:var(--ok)}
+.stg.out{background:var(--acbg);color:var(--mu)}
 .nwt{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:var(--lo);color:#fff;font-size:10px;font-weight:800;vertical-align:1px;letter-spacing:.3px}
 .sr .sg{font-size:11.5px;font-weight:600;color:var(--mu);margin-top:2px;text-align:right}
 .sgb{margin:0 0 10px;padding:8px;border:1px solid var(--bd);border-radius:10px;background:var(--bg)}
@@ -446,7 +449,7 @@ body .updb{bottom:calc(var(--nbh) + 12px)}body .tst{bottom:calc(var(--nbh) + 18p
 <div class="cr col"><div class="nvh"><div class="cl"><div class="ct">Thứ tự menu</div><div class="cs">Giữ rồi kéo lên xuống để đổi chỗ</div></div><button type="button" class="b" id="nvr">Mặc định</button></div><div id="nvl"></div></div>
 <div class="cr"><div class="cl"><div class="ct">Sao lưu đơn hàng</div><div class="cs" id="cfgb"></div></div><div class="b" id="cbk">Sao lưu</div></div>
 <div class="cr"><div class="cl"><div class="ct">Mở không cần mạng</div><div class="cs kst" id="offs">Đang kiểm tra…</div></div><div class="b" id="offb">Tải lại</div></div>
-<div class="kver" id="kver">Phiên bản v105 · 17/10/2026</div>
+<div class="kver" id="kver">Phiên bản v106 · 17/10/2026</div>
 </div>
 <div class="pgt" id="stt">Tra tồn kho</div>
 <div class="bar"><input type="search" id="q" placeholder="Mã hoặc tên, vd: dg ro 650" autocomplete="off"><button type="button" id="bkord">← Ghi đơn</button></div>
@@ -1633,7 +1636,7 @@ var PRBT={ro:0,romano:0,en:1,enchanteur:1,ensua:1,gvn:2,gervenne:2,mk:3,mkl:3,ma
 /* Nhãn hàng = từ nhãn đầu tiên xuất hiện trong tên (ưu tiên ro, en, gvn, mk, cj, bio, ak) */
 function prBrand(r){var t=r[8]||[];for(var i=0;i<t.length;i++){if(PRBT[t[i]]!==undefined)return PRBT[t[i]]}return 99}
 function openPrices(){
-  var el=page("Bảng giá",'<input type="search" id="prq" class="dsq" placeholder="Tìm mã hoặc tên hàng, vd: ngx 3.8" autocomplete="off"><div class="dch" id="prc"><button type="button" data-f="all">Tất cả</button><button type="button" data-f="np">Còn hàng, chưa có giá</button><button type="button" data-f="oo">Hết hàng, chưa có giá</button><button type="button" data-f="ed">Đã sửa trong app</button><button type="button" data-f="nw" id="prnw">Mới</button></div><div id="prl"></div>');
+  var el=page("Bảng giá",'<input type="search" id="prq" class="dsq" placeholder="Tìm mã hoặc tên hàng, vd: ngx 3.8" autocomplete="off"><div class="dch" id="prc"><button type="button" data-f="all">Tất cả</button><button type="button" data-f="in" id="prin">Còn hàng</button><button type="button" data-f="np">Còn hàng, chưa có giá</button><button type="button" data-f="oo">Hết hàng, chưa có giá</button><button type="button" data-f="ed">Đã sửa trong app</button><button type="button" data-f="nw" id="prnw">Mới</button></div><div id="prl"></div>');
   var prh=document.createElement("div");prh.className="prh";prh.appendChild(el.querySelector("#prq"));prh.appendChild(el.querySelector("#prc"));
   el.insertBefore(prh,el.querySelector(".pgb"));
   var q=el.querySelector("#prq"),l=el.querySelector("#prl"),lim=1e9;
@@ -1641,11 +1644,13 @@ function openPrices(){
     var pend=pendList();if(prF==="nw"&&!pend.length)prF="all";
     var nwb=el.querySelector("#prnw");nwb.style.display=pend.length?"":"none";nwb.textContent="Mới ("+pend.length+")";
     [].forEach.call(el.querySelectorAll("#prc button"),function(b){b.classList.toggle("on",b.getAttribute("data-f")===prF)});
-    var np=0,i;
-    for(i=0;i<D.length;i++){var r0=D[i];if(r0[0]&&!/^(Sr|GT)/.test(r0[0])&&r0[5]>0&&!(priceOf(r0[0])>0))np++}
+    var np=0,ni=0,i;
+    for(i=0;i<D.length;i++){var r0=D[i];if(r0[0]&&!/^(Sr|GT)/.test(r0[0])&&r0[5]>0){ni++;if(!(priceOf(r0[0])>0))np++}}
+    el.querySelector("#prin").textContent="Còn hàng ("+ni+")";
     var S=srch(q.value,function(r){
       if(!r[0]||/^(Sr|GT)/.test(r[0]))return false;
       var p=priceOf(r[0]);
+      if(prF==="in")return r[5]>0;
       if(prF==="np")return p>0?false:r[5]>0;
       if(prF==="oo")return !(p>0)&&!(r[5]>0);
       if(prF==="ed")return PO[r[0]]>0;
@@ -1672,7 +1677,7 @@ function openPrices(){
       if(sq&&g!==last){last=g;lastc=null;var u=r[6].trim();h+='<div class="g"><span>'+(u?esc(u.charAt(0).toUpperCase()+u.slice(1).toLowerCase()):"Không có ĐVT")+'</span><span class="n">'+S.gs[g].length+'</span></div>'}
       if(sq&&S.multi[g]&&r[11]!==lastc){lastc=r[11];h+='<div class="g2"><span>'+esc(lastc)+'</span><span class="n">'+S.cc[g][lastc].length+'</span></div>'}
       if(!(p>0)){var g=suggest(i);if(g)sgx='<div class="sg">'+(g.kind==="same"?"gợi ý ":"≈ ")+money(g.price)+'</div>'}
-      h+='<div class="pi" data-i="'+i+'"><div class="sr"><div><div class="pt">'+hl(r[1],S.hw,S.hx,S.iw)+(NEWM[r[0]]&&!(p>0)?'<span class="nwt">MỚI</span>':"")+'</div><div class="n">'+hl(r[0],S.hw,S.hx)+" · "+hl(String(r[6]).trim(),S.hw,S.hx)+(r[5]>0?" · tồn "+r[5]:" · hết hàng")+'</div></div><div class="a'+(p>0?"":" np")+'">'+(p>0?money(p)+(PO[r[0]]>0?" ✎":""):"Chưa có giá"+sgx)+'</div></div></div>';
+      h+='<div class="pi" data-i="'+i+'"><div class="sr"><div><div class="pt">'+hl(r[1],S.hw,S.hx,S.iw)+(NEWM[r[0]]&&!(p>0)?'<span class="nwt">MỚI</span>':"")+'</div><div class="n">'+hl(r[0],S.hw,S.hx)+" · "+hl(String(r[6]).trim(),S.hw,S.hx)+ ' <span class="stg '+(r[5]>0?'in">Còn '+r[5]:'out">Hết hàng')+'</span>'+'</div></div><div class="a'+(p>0?"":" np")+'">'+(p>0?money(p)+(PO[r[0]]>0?" ✎":""):"Chưa có giá"+sgx)+'</div></div></div>';
     });
     
     l.innerHTML=h;
