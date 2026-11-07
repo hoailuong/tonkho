@@ -84,6 +84,7 @@ mark{background:var(--hi);color:inherit}
 #taw{position:relative;flex:none}
 #bltip{display:none;flex:none;margin:0 0 4px;padding:6px 10px;border-radius:8px;background:var(--hi);font-size:12.5px;line-height:1.35;color:var(--tx)}#bltip.on{display:block}#bltip b{color:var(--lo)}#bltip i{font-style:normal;color:var(--mu)}
 #lnb{position:absolute;left:0;width:10px;overflow:hidden;pointer-events:none;z-index:2}#lnb>div{position:relative}.lnr{position:absolute;left:0;width:10px;pointer-events:auto;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}.lnr::before{content:"";position:absolute;left:3px;top:2px;bottom:2px;width:3px;border-radius:2px;background:var(--c)}
+#cnb{position:absolute;left:0;width:100%;overflow:hidden;pointer-events:none;z-index:3}#cnb>div{position:relative}.cnl{position:absolute;white-space:nowrap;pointer-events:none}.cnl span{font-weight:600;color:var(--ok);margin-left:8px;position:relative;top:-.12em}.cnl em{font-style:normal;font-weight:700;color:var(--lo);margin-left:5px;position:relative;top:-.12em}
 #lnt{position:absolute;z-index:4;left:12px;right:12px;max-width:340px;box-sizing:border-box;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-left:3px solid var(--c);border-radius:8px;padding:6px 10px 7px;font-size:13px;line-height:1.35;pointer-events:none}#lnt b{display:block;font-size:11.5px;letter-spacing:.2px;color:var(--c);margin-bottom:1px}#lnt::after{content:"";position:absolute;left:8px;width:8px;height:8px;background:var(--card);border:1px solid var(--bd);transform:rotate(45deg)}#lnt.up::after{bottom:-5px;border-top:0;border-left:0}#lnt.dn::after{top:-5px;border-bottom:0;border-right:0}
 #taw.sm{display:none}
 #taw:not(.sm)~#dhout{display:none}
@@ -516,7 +517,7 @@ body .updb{bottom:calc(var(--nbh) + 12px)}body .tst{bottom:calc(var(--nbh) + 18p
 <div class="cr col"><div class="nvh"><div class="cl"><div class="ct">Thứ tự menu</div><div class="cs">Giữ rồi kéo lên xuống để đổi chỗ</div></div><button type="button" class="b" id="nvr">Mặc định</button></div><div id="nvl"></div></div>
 <div class="cr"><div class="cl"><div class="ct">Sao lưu đơn hàng</div><div class="cs" id="cfgb"></div></div><div class="b" id="cbk">Sao lưu</div></div>
 <div class="cr"><div class="cl"><div class="ct">Mở không cần mạng</div><div class="cs kst" id="offs">Đang kiểm tra…</div></div><div class="b" id="offb">Tải lại</div></div>
-<div class="kver" id="kver">Phiên bản v194 · 06/11/2026</div>
+<div class="kver" id="kver">Phiên bản v197 · 07/11/2026</div>
 </div>
 <div class="pgt" id="stt">Tra tồn kho</div>
 <div class="bar"><input type="search" id="q" placeholder="Mã hoặc tên, vd: dg ro 650 kẹp" autocomplete="off"><button type="button" id="bkord">← Ghi đơn</button></div>
@@ -875,6 +876,7 @@ $("f").addEventListener("change",function(e){
     try{window.__ensureAll()}catch(x){}
     if(!(p.ts>0))p.ts=Date.now();STS=p.ts;
     load(p.rows,p.meta);
+    try{window.__afterLoad()}catch(x){}
     try{localStorage.setItem(KEY,JSON.stringify(p))}catch(x){}
     try{window.__newCheck(1,prev)}catch(x){}
     e.target.value="";
@@ -1818,7 +1820,13 @@ function ensure(k){
 }
 function flushOrd(){if(ordDirty){ordDirty=false;ordSave()}}
 /* Chốt mã hàng + giá của mọi đơn theo tồn kho HIỆN TẠI, trước khi nạp file kho mới */
-window.__ensureAll=function(){var k;try{chMig()}catch(x){}for(k in ORD){try{ensure(k)}catch(x){}}flushOrd()};
+window.__ensureAll=function(){var k;try{chMig()}catch(x){}
+  /* đang ở màn Kiểm tra đơn: chốt trước phần đang xem (mã đã chọn, ô đã chép) theo kho CŨ, rồi mới nạp kho mới */
+  try{if(data&&anText===ta.value)curSave()}catch(x){}
+  for(k in ORD){try{ensure(k)}catch(x){}}flushOrd()};
+/* sau khi nạp kho mới: kết quả kiểm tra đang giữ chỉ số dòng của kho cũ -> phải đọc lại, nếu không lần lưu sau sẽ ghi sai mã */
+window.__afterLoad=function(){try{NMC=null}catch(x){}
+  try{if(data){if(ta.classList.contains("sm"))analyze();else{data=null;anText=""}}}catch(x){}};
 var NMC=null;
 function nameOf(c){if(!NMC){NMC={};for(var i=0;i<D.length;i++)NMC[D[i][0]]=D[i][1]}return NMC[c]||c}
 function priceDlg(code,name,cb){
@@ -3258,7 +3266,40 @@ navAct();
     var pl=so&&so.pl;
     return tally(d.rows,function(c){var v=pl&&pl[c];return v>0?v:priceOf(c)});
   }
+  /* số tiền từng khách hiện ngay sau tên khách (lớp phủ, không nằm trong chữ của đơn) */
+  var nb=null,nin=null,nmir=null,lastT=null;
+  function esc2(l){return l.replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c]})}
+  function paintNames(){
+    var w=$("taw");if(!w)return;
+    if(!nb){nb=document.createElement("div");nb.id="cnb";nb.setAttribute("aria-hidden","true");nin=document.createElement("div");nb.appendChild(nin);w.appendChild(nb);
+      nmir=document.createElement("div");nmir.setAttribute("aria-hidden","true");document.body.appendChild(nmir)}
+    var T=lastT,on=T&&T.cs&&ta.offsetParent!==null&&!ta.classList.contains("sm");
+    nb.style.display=on?"":"none";if(!on){nin.innerHTML="";return}
+    var cs=getComputedStyle(ta),pt=parseFloat(cs.paddingTop)||0,bt=parseFloat(cs.borderTopWidth)||0,pl=parseFloat(cs.paddingLeft)||0,pr=parseFloat(cs.paddingRight)||0;
+    var fs=parseFloat(cs.fontSize)||20,lh=parseFloat(cs.lineHeight)||Math.round(fs*1.4),cw=Math.max(10,ta.clientWidth-pl-pr);
+    nb.style.top=bt+"px";nb.style.height=ta.clientHeight+"px";
+    var lines=ta.value.split(/\r?\n/),want=[],seen={};
+    lines.forEach(function(L,i){var k=L.trim();if(!k||seen[k])return;var c=T.cs[k];if(!c)return;seen[k]=1;
+      var w2=c.np+c.un,txt=c.amt>0?money(c.amt):"";if(!txt&&!w2)return;want.push({i:i,txt:txt,w:w2})});
+    nmir.style.cssText="position:fixed;left:-9999px;top:0;visibility:hidden;pointer-events:none;white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;box-sizing:content-box;width:"+cw+"px;font:"+cs.font+";letter-spacing:"+cs.letterSpacing+";word-spacing:"+cs.wordSpacing+";tab-size:"+(cs.tabSize||8);
+    nmir.innerHTML=lines.map(function(l,i){return "<div>"+(l?esc2(l):"&#8203;")+"<s style=\"text-decoration:none\"></s></div>"}).join("");
+    var kids=nmir.children,h="",lfs=Math.max(13,Math.round(fs*0.76));
+    want.forEach(function(x){
+      var d=kids[x.i];if(!d)return;var m=d.lastChild,dr=d.getBoundingClientRect(),mr=m.getBoundingClientRect();
+      var top=pt+d.offsetTop+Math.floor((mr.top-dr.top)/lh)*lh,left=pl+Math.round(mr.left-dr.left);
+      var inner='<span style="font-size:'+lfs+'px">'+x.txt+'</span>'+(x.w?'<em style="font-size:'+Math.max(12,lfs-2)+'px">⚠'+x.w+'</em>':"");
+      h+='<div class="cnl" style="top:'+top+'px;left:'+left+'px;height:'+lh+'px;line-height:'+lh+'px;font-size:'+fs+'px">'+inner+'</div>';
+    });
+    nin.innerHTML=h;nin.style.transform="translateY("+(-ta.scrollTop)+"px)";
+    /* quá rộng (tên khách dài): bỏ chữ đ cho gọn; vẫn quá thì thôi không hiện để khỏi đè lên nút */
+    var lim=ta.clientWidth-pr-2;
+    [].forEach.call(nin.children,function(n){
+      if(n.offsetLeft+n.offsetWidth>lim){var sp=n.querySelector("span");if(sp)sp.textContent=sp.textContent.replace(/đ$/,"");
+        if(n.offsetLeft+n.offsetWidth>lim)n.style.display="none"}
+    });
+  }
   function show(T){
+    lastT=T||null;try{paintNames()}catch(e){}
     if(!T||(!(T.amt>0)&&!(T.np+T.un>0))||ta.classList.contains("sm")){el.className="";el.innerHTML="";return}
     var w=T.np+T.un;
     el.innerHTML='<span>Tổng</span><b>'+money(T.amt)+'</b>'+(w?'<span class="wn" title="'+w+' dòng chưa tính được (chưa chọn mặt hàng hoặc chưa có giá)">⚠'+w+'</span>':"");
@@ -3289,6 +3330,9 @@ navAct();
   var _ld2=loadDay;loadDay=function(){var r=_ld2.apply(this,arguments);try{lastKey="";setTimeout(full,120)}catch(e){}return r};
   /* dữ liệu đổi từ nơi khác (nạp file kho, sửa giá, ngày khác, tab khác): tự cập nhật */
   setInterval(function(){try{if(Date.now()-lastIn>1700)run(-1)}catch(e){}},900);
+  ta.addEventListener("input",function(){try{paintNames()}catch(e){}});
+  ta.addEventListener("scroll",function(){if(nin)nin.style.transform="translateY("+(-ta.scrollTop)+"px)"},{passive:true});
+  window.addEventListener("resize",function(){setTimeout(function(){try{paintNames()}catch(e){}},200)});
   window.__ltRefresh=function(){lastKey="";full()};
 }catch(e){}})();
 /* ===== Vạch màu kiểm tra đơn ngay khi gõ (v75) ===== */
